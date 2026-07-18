@@ -104,6 +104,15 @@ impl Int {
         (q, r)
     }
 
+    /// 2^e as an integer.
+    pub fn pow2(e: u64) -> Int {
+        let limb = (e / 64) as usize;
+        let bit = e % 64;
+        let mut mag = vec![0 as Limb; limb + 1];
+        mag[limb] = 1 << bit;
+        Int { neg: false, mag }
+    }
+
     /// Exact conversion to [`Float`].
     pub fn to_float(&self) -> Float {
         if self.is_zero() {

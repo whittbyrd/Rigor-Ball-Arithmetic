@@ -53,6 +53,15 @@ pub fn e(prec: u32) -> Ball {
     E.get(prec, crate::binsplit::e_binsplit)
 }
 
+static LN_2PI: Cache = Cache::new();
+
+/// ln 2π as a ball with ≥ `prec` certified bits.
+pub fn ln_2pi(prec: u32) -> Ball {
+    LN_2PI.get(prec, |wp| {
+        elementary::ln(&pi(wp + 8).mul_2exp(1), wp)
+    })
+}
+
 /// Machin's formula: π = 16·atan(1/5) − 4·atan(1/239).
 ///
 /// Both arguments are < 1, so the atan path never needs π (no circularity).

@@ -21,6 +21,9 @@ pub mod int;
 pub mod elementary;
 pub mod constants;
 pub mod binsplit;
+pub mod bernoulli;
+pub mod gamma;
+pub mod zeta;
 
 #[doc(hidden)]
 pub mod testutil;
