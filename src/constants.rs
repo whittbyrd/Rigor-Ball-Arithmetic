@@ -37,27 +37,29 @@ static PI: Cache = Cache::new();
 static LN2: Cache = Cache::new();
 static E: Cache = Cache::new();
 
-/// π as a ball with ≥ `prec` certified bits.
+/// π as a ball with ≥ `prec` certified bits (Chudnovsky binary splitting).
 pub fn pi(prec: u32) -> Ball {
-    PI.get(prec, compute_pi_machin)
+    PI.get(prec, crate::binsplit::pi_chudnovsky)
 }
 
-/// ln 2 as a ball with ≥ `prec` certified bits.
+/// ln 2 as a ball with ≥ `prec` certified bits (binary splitting of
+/// 2·atanh(1/3)).
 pub fn ln2(prec: u32) -> Ball {
-    LN2.get(prec, |wp| elementary::ln_core(&Ball::from_i64(2), wp + 32))
+    LN2.get(prec, crate::binsplit::ln2_binsplit)
 }
 
-/// e as a ball with ≥ `prec` certified bits.
+/// e as a ball with ≥ `prec` certified bits (binary splitting of Σ 1/k!).
 pub fn e(prec: u32) -> Ball {
-    E.get(prec, |wp| elementary::exp(&Ball::from_i64(1), wp + 32))
+    E.get(prec, crate::binsplit::e_binsplit)
 }
 
 /// Machin's formula: π = 16·atan(1/5) − 4·atan(1/239).
 ///
 /// Both arguments are < 1, so the atan path never needs π (no circularity).
-/// Replaced by Chudnovsky binary splitting for large precisions in the
-/// constants benchmarks; kept as an independent cross-check.
-fn compute_pi_machin(wp: u32) -> Ball {
+/// Slower than Chudnovsky; kept as an algorithmically independent
+/// cross-check of the production π (see binsplit tests).
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) fn compute_pi_machin(wp: u32) -> Ball {
     let wp = wp + 32;
     let a5 = elementary::atan(&Ball::from_i64(1).div_u64(5, wp), wp);
     let a239 = elementary::atan(&Ball::from_i64(1).div_u64(239, wp), wp);

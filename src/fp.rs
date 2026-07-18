@@ -143,6 +143,24 @@ impl Float {
         Float { neg, exp: exp2 + 64 - lz as i64, limbs: vec![mant << lz] }
     }
 
+    /// Exact conversion from a little-endian limb integer.
+    pub fn from_limbs(mag: &[Limb]) -> Self {
+        let n = mpn::normalized_len(mag);
+        if n == 0 {
+            return Float::zero();
+        }
+        let lz = mag[n - 1].leading_zeros();
+        let mut limbs = vec![0 as Limb; n];
+        if lz == 0 {
+            limbs.copy_from_slice(&mag[..n]);
+        } else {
+            let out = mpn::lshift(&mut limbs, &mag[..n], lz);
+            debug_assert_eq!(out, 0);
+        }
+        let lowz = limbs.iter().position(|&l| l != 0).unwrap();
+        Float { neg: false, exp: 64 * n as i64 - lz as i64, limbs: limbs[lowz..].to_vec() }
+    }
+
     /// Approximate conversion to f64 (round to nearest; may overflow to inf).
     pub fn to_f64(&self) -> f64 {
         if self.is_zero() {
