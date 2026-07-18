@@ -1,0 +1,41 @@
+[package]
+name = "rigor"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+description = "Ball arithmetic for verified real computation: correct inclusions, always."
+license = "MIT OR Apache-2.0"
+keywords = ["arbitrary-precision", "interval-arithmetic", "ball-arithmetic", "verified", "numerics"]
+categories = ["mathematics", "science"]
+
+[dependencies]
+# Core is intentionally dependency-free.
+
+[dev-dependencies]
+criterion = { version = "0.5", default-features = false, features = ["cargo_bench_support"] }
+
+[features]
+default = []
+# Differential testing against Arb via FLINT. Linux-only in practice
+# (FLINT does not build under MSVC); exercised in CI.
+arb-tests = []
+
+[[bench]]
+name = "elementary"
+harness = false
+
+[[bench]]
+name = "constants"
+harness = false
+
+[[bench]]
+name = "special"
+harness = false
+
+[profile.release]
+debug = true          # keep symbols for flamegraphs
+lto = "thin"
+codegen-units = 1
+
+[profile.bench]
+debug = true
