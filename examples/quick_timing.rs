@@ -1,5 +1,5 @@
 //! Rough timing sanity check: `cargo run --release --example quick_timing`
-use rigor::{ball::Ball, constants, elementary};
+use rigor::{ball::Ball, constants, elementary, gamma, zeta};
 use std::time::Instant;
 
 fn time<F: FnMut() -> Ball>(name: &str, mut f: F) {
@@ -23,5 +23,9 @@ fn main() {
         time("sin(1.5)", || elementary::sin(&x, prec));
         time("atan(1.5)", || elementary::atan(&x, prec));
         time("pi (cold-ish)", || constants::pi(prec));
+        if digits <= 1_000 {
+            time("gamma(1.5)", || gamma::gamma(&x, prec));
+            time("zeta(3)", || zeta::zeta(&Ball::from_i64(3), prec));
+        }
     }
 }

@@ -34,6 +34,8 @@ pub fn try_gamma(x: &Ball, prec: u32) -> Option<Ball> {
     for attempt in 0..=MAX_ATTEMPTS {
         let extra = 64 + prec / 2 * attempt;
         let r = gamma_attempt(x, prec + extra)?;
+        #[cfg(feature = "trace-retries")]
+        eprintln!("gamma attempt {attempt}: acc {} (want {prec})", r.rel_accuracy_bits());
         if r.rel_accuracy_bits() >= prec as i64 || attempt == MAX_ATTEMPTS {
             return Some(r.round(prec));
         }
@@ -89,12 +91,29 @@ fn gamma_pos(x: &Ball, wp: u32) -> Option<Ball> {
     }
 }
 
+/// Series-length budget. Tangent-number generation costs O(M²) big-integer
+/// operations (≈ M³ bit ops), so M is capped and the argument shift takes
+/// up the slack — shift multiplications are only O(n) each. This is the
+/// honest cost center vs Arb, which generates Bernoulli numbers much
+/// faster (see README).
+const MAX_STIRLING_TERMS: f64 = 1500.0;
+
+/// Stirling series length and argument target for `wp` bits:
+/// the M-th term is ≈ (2M/(2πez))^(2M), so requiring 2^−wp gives
+/// z ≈ (M/2π)·exp(wp·ln2/(2M)).
+fn stirling_params(wp: u32) -> (usize, f64) {
+    let m = ((wp as f64) * 0.17 + 8.0).min(MAX_STIRLING_TERMS);
+    let z = (m / (2.0 * core::f64::consts::PI))
+        * (((wp as f64) * core::f64::consts::LN_2 + 16.0) / (2.0 * m)).exp()
+        + 4.0;
+    (m as usize, z)
+}
+
 /// Shift x up by an integer r so Stirling converges fast:
 /// Γ(x) = Γ(x + r) / (x(x+1)…(x+r−1)).
 /// Returns (x + r, product ball or None if r == 0).
 fn shift_argument(x: &Ball, wp: u32) -> (Ball, Option<Ball>) {
-    // Balance: series terms decay ~(2πz)² per pair once z ≳ wp·ln2/(2π).
-    let target = (wp as f64) * 0.115 + 8.0;
+    let (_, target) = stirling_params(wp);
     let xm = x.mid().to_f64();
     let r = (target - xm).ceil().max(0.0) as i64;
     if r == 0 {
@@ -119,9 +138,10 @@ fn ln_gamma_stirling(z: &Ball, wp: u32) -> Ball {
     // Choose M so the first omitted term is ≲ 2^−(wp+8), estimated in f64
     // via ln|B_2k| ≈ ln 2 + lnΓ(2k+1) − 2k ln(2π). The rigorous bound below
     // is computed with the actual B_{2M+2}; a bad M only widens the ball.
+    let (m_budget, _) = stirling_params(wp);
     let mut m = 1usize;
     let lo_target = -((wp as f64) + 8.0) * core::f64::consts::LN_2;
-    while m < 100_000 {
+    while m < m_budget + 64 {
         let k2 = (2 * m + 2) as f64;
         let ln_b = core::f64::consts::LN_2 + ln_gamma_f64(k2 + 1.0)
             - k2 * (2.0 * core::f64::consts::PI).ln();

@@ -66,8 +66,10 @@ pub fn bernoulli(k: usize, prec: u32) -> Ball {
     ensure_tangent(k);
     let mut guard = BALLS.lock().unwrap();
     if guard.0 < prec {
-        // Precision tier raised: rebuild the ball table.
-        *guard = (prec + prec / 4 + 64, Vec::new());
+        // Precision tier raised: rebuild the ball table. Generous headroom —
+        // adaptive retry loops upstream probe successively larger working
+        // precisions, and each tier bump discards the whole table.
+        *guard = (prec * 2 + 64, Vec::new());
     }
     let cp = guard.0;
     let balls = &mut guard.1;

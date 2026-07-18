@@ -81,11 +81,11 @@ fn j_pow_neg_s(j: u64, s: &Ball, int_s: Option<u64>, wp: u32) -> Ball {
 fn zeta_em(s: &Ball, wp: u32) -> Ball {
     let int_s = as_small_int(s);
 
-    // Parameter choice: with N ≈ M, each Bernoulli term decays by roughly
-    // (M/(πN))² ≈ 1/π²; more precisely the error is ≈ (2π N)^(−2M).
-    // Choose N = M ≈ wp·ln2/(2π) + slack. The remainder is computed
-    // rigorously below, so this only affects performance.
-    let nm = ((wp as f64) * 0.1103 + 10.0).ceil() as u64;
+    // Parameter choice: with N = M the k-th correction term is roughly
+    //   2(2k)!/((2π)^(2k) N^(2k−1)) ⇒ log2 t_M ≈ 2M·[log2(2M/e) − log2(2πN)]
+    // ≈ −6.2·M bits, so M ≈ wp/6.2 terms suffice. The remainder is computed
+    // rigorously below; this choice only affects performance.
+    let nm = ((wp as f64) * 0.17 + 10.0).ceil() as u64;
     let n = nm;
     let m = nm as usize;
 
@@ -132,10 +132,13 @@ fn zeta_em(s: &Ball, wp: u32) -> Ball {
     let rem = {
         let k = m + 1;
         let b = bernoulli::bernoulli(k, 64).abs_upper();
-        // (s)_{2k−1} ≤ (s_up + 2k − 2)^(2k−1).
+        // (s)_{2k−1} = Π_{i=0}^{2k−2} (s+i), upper-bounded term by term.
         let s_up = s.abs_upper();
-        let (base, _) = s_up.add(&Float::from_u64(2 * k as u64 - 2), 64, Round::Up);
-        let rise_up = pow_dir(&base, 2 * k as u64 - 1, Round::Up);
+        let mut rise_up = Float::from_i64(1);
+        for i in 0..(2 * k as u64 - 1) {
+            let (f, _) = s_up.add(&Float::from_u64(i), 64, Round::Up);
+            rise_up = rise_up.mul(&f, 64, Round::Up).0;
+        }
         // N^(−s−2k+1) ≤ N^(−s_low−2k+1); s_low ≥ 0 ⇒ ≤ N^(−2k+1)… use s_low.
         let s_low = s.lower_bound();
         let e = (2 * k as u64 - 1) as i64 + s_low.to_i64_trunc().max(0);
