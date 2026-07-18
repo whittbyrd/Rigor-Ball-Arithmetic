@@ -533,6 +533,16 @@ impl Float {
         Float::from_window(false, &s, exp_top, !exact, prec, rnd)
     }
 
+    /// Top `n` fraction bits (1 ≤ n ≤ 64) as an integer in `[2^(n-1), 2^n)`.
+    /// Zero for a zero value.
+    pub fn top_bits(&self, n: u32) -> u64 {
+        debug_assert!(n >= 1 && n <= 64);
+        match self.limbs.last() {
+            None => 0,
+            Some(&top) => top >> (64 - n),
+        }
+    }
+
     /// Exponent of one unit in the last place for a `prec`-bit rounding of
     /// this number: `ulp = 2^(exponent - prec)`.
     pub fn ulp_exp(&self, prec: u32) -> Option<i64> {

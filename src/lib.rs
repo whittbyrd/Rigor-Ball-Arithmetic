@@ -15,8 +15,12 @@
 
 pub mod mpn;
 pub mod fp;
+pub mod mag;
+pub mod ball;
 
 #[doc(hidden)]
 pub mod testutil;
 
+pub use ball::Ball;
 pub use fp::{Float, Round};
+pub use mag::Mag;
