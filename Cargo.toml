@@ -5,6 +5,8 @@ edition = "2021"
 rust-version = "1.85"
 description = "Ball arithmetic for verified real computation: correct inclusions, always."
 license = "MIT OR Apache-2.0"
+repository = "https://github.com/whittbyrd/rigor"
+readme = "README.md"
 keywords = ["arbitrary-precision", "interval-arithmetic", "ball-arithmetic", "verified", "numerics"]
 categories = ["mathematics", "science"]
 
