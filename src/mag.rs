@@ -162,7 +162,9 @@ impl core::fmt::Display for Mag {
         if self.is_zero() {
             write!(f, "0")
         } else {
-            write!(f, "2^{}", self.exp)
+            // man ∈ [2^29, 2^30): value = man·2^(exp−30) ∈ [2^(exp−1), 2^exp).
+            let frac = (self.man as f64).log2() - MAG_BITS as f64;
+            write!(f, "2^{:.1}", self.exp as f64 + frac)
         }
     }
 }

@@ -16,10 +16,9 @@ criterion = { version = "0.5", default-features = false, features = ["cargo_benc
 
 [features]
 default = []
-# Differential testing against Arb via FLINT. Linux-only in practice
-# (FLINT does not build under MSVC); exercised in CI.
-arb-tests = []
 # Print adaptive-precision retry diagnostics to stderr.
+# (Differential testing against Arb lives in tools/arb-diff — a separate
+# Linux-only crate, since FLINT does not build under MSVC.)
 trace-retries = []
 
 [[bench]]

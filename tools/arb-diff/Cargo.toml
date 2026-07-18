@@ -1,0 +1,15 @@
+# Differential tester against Arb (via FLINT ≥ 3). Linux-only in practice:
+# FLINT does not build under MSVC. Not part of the main crate's build; run
+# from CI (see .github/workflows/ci.yml) or locally with libflint-dev:
+#
+#   cargo run --release --manifest-path tools/arb-diff/Cargo.toml
+[package]
+name = "arb-diff"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+rigor = { path = "../.." }
+
+[workspace]
