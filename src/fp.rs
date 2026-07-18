@@ -83,7 +83,11 @@ pub struct Float {
 
 impl Float {
     pub const fn zero() -> Self {
-        Float { neg: false, exp: 0, limbs: Vec::new() }
+        Float {
+            neg: false,
+            exp: 0,
+            limbs: Vec::new(),
+        }
     }
 
     pub fn is_zero(&self) -> bool {
@@ -96,7 +100,11 @@ impl Float {
 
     /// Exponent `e` with `|x| ∈ [2^(e-1), 2^e)`; `None` for zero.
     pub fn exponent(&self) -> Option<i64> {
-        if self.is_zero() { None } else { Some(self.exp) }
+        if self.is_zero() {
+            None
+        } else {
+            Some(self.exp)
+        }
     }
 
     /// Number of significant bits in the fraction (0 for zero).
@@ -114,7 +122,11 @@ impl Float {
             return Float::zero();
         }
         let lz = v.leading_zeros();
-        Float { neg: false, exp: 64 - lz as i64, limbs: vec![v << lz] }
+        Float {
+            neg: false,
+            exp: 64 - lz as i64,
+            limbs: vec![v << lz],
+        }
     }
 
     pub fn from_i64(v: i64) -> Self {
@@ -140,7 +152,11 @@ impl Float {
         };
         // value = mant * 2^exp2, normalized so the limb's top bit is set.
         let lz = mant.leading_zeros();
-        Float { neg, exp: exp2 + 64 - lz as i64, limbs: vec![mant << lz] }
+        Float {
+            neg,
+            exp: exp2 + 64 - lz as i64,
+            limbs: vec![mant << lz],
+        }
     }
 
     /// Exact conversion from a little-endian limb integer.
@@ -158,7 +174,11 @@ impl Float {
             debug_assert_eq!(out, 0);
         }
         let lowz = limbs.iter().position(|&l| l != 0).unwrap();
-        Float { neg: false, exp: 64 * n as i64 - lz as i64, limbs: limbs[lowz..].to_vec() }
+        Float {
+            neg: false,
+            exp: 64 * n as i64 - lz as i64,
+            limbs: limbs[lowz..].to_vec(),
+        }
     }
 
     /// Approximate conversion to f64 (round to nearest; may overflow to inf).
@@ -168,10 +188,18 @@ impl Float {
         }
         let n = self.limbs.len();
         let top = self.limbs[n - 1] as f64; // fraction top limb / 2^64
-        let next = if n >= 2 { self.limbs[n - 2] as f64 } else { 0.0 };
+        let next = if n >= 2 {
+            self.limbs[n - 2] as f64
+        } else {
+            0.0
+        };
         let frac = top / 2f64.powi(64) + next / 2f64.powi(128);
         let v = frac * 2f64.powi(self.exp.clamp(-2000, 2000) as i32);
-        if self.neg { -v } else { v }
+        if self.neg {
+            -v
+        } else {
+            v
+        }
     }
 
     pub fn neg_assign(&mut self) {
@@ -226,22 +254,6 @@ impl Float {
         Ordering::Equal
     }
 
-    /// Total order (-inf .. +inf).
-    pub fn cmp(&self, other: &Float) -> Ordering {
-        match (self.is_zero(), other.is_zero()) {
-            (true, true) => return Ordering::Equal,
-            (true, false) => return if other.neg { Ordering::Greater } else { Ordering::Less },
-            (false, true) => return if self.neg { Ordering::Less } else { Ordering::Greater },
-            _ => {}
-        }
-        match (self.neg, other.neg) {
-            (false, true) => Ordering::Greater,
-            (true, false) => Ordering::Less,
-            (false, false) => self.cmp_abs(other),
-            (true, true) => other.cmp_abs(self),
-        }
-    }
-
     /// Sign as -1 / 0 / +1.
     pub fn signum(&self) -> i32 {
         if self.is_zero() {
@@ -283,7 +295,10 @@ impl Float {
             return (Float::zero(), false);
         }
         let t = (wn as i64) * 64 - 1 - w[wn - 1].leading_zeros() as i64;
-        debug_assert!(!sticky || t >= 126, "sticky window with catastrophic cancellation");
+        debug_assert!(
+            !sticky || t >= 126,
+            "sticky window with catastrophic cancellation"
+        );
 
         let e = exp_top - (wbits - 1 - t); // value in [2^(e-1), 2^e)
         let nl = prec.div_ceil(LIMB_BITS) as usize;
@@ -323,9 +338,21 @@ impl Float {
             }
             let q = o.div_euclid(64);
             let sh = o.rem_euclid(64) as u32;
-            let lo = if q >= 0 && (q as usize) < w.len() { w[q as usize] } else { 0 };
-            let hi = if q + 1 >= 0 && ((q + 1) as usize) < w.len() { w[(q + 1) as usize] } else { 0 };
-            if sh == 0 { lo } else { lo >> sh | hi << (64 - sh) }
+            let lo = if q >= 0 && (q as usize) < w.len() {
+                w[q as usize]
+            } else {
+                0
+            };
+            let hi = if q + 1 >= 0 && ((q + 1) as usize) < w.len() {
+                w[(q + 1) as usize]
+            } else {
+                0
+            };
+            if sh == 0 {
+                lo
+            } else {
+                lo >> sh | hi << (64 - sh)
+            }
         };
         let mut m: Vec<Limb> = (0..nl).map(|k| window_limb(off + 64 * k as i64)).collect();
         if drop > 0 {
@@ -566,7 +593,11 @@ impl Float {
     pub fn approx_recip(&self, prec: u32) -> Float {
         assert!(!self.is_zero(), "approx_recip of zero");
         // Work on the mantissa m ∈ [1/2, 1): 1/x = (1/m) · 2^−e.
-        let m = Float { neg: false, exp: 0, limbs: self.limbs.clone() };
+        let m = Float {
+            neg: false,
+            exp: 0,
+            limbs: self.limbs.clone(),
+        };
         // Precision ladder: quadratic convergence doubles accuracy per step.
         let mut ladder = vec![prec + 8];
         while *ladder.last().unwrap() > 50 {
@@ -600,8 +631,16 @@ impl Float {
         }
         // m ∈ [1/4, 1) with even exponent offset: √x = √m · 2^(e/2).
         let e = self.exp;
-        let (m_exp, half) = if e % 2 == 0 { (0, e / 2) } else { (-1, (e + 1) / 2) };
-        let m = Float { neg: false, exp: m_exp, limbs: self.limbs.clone() };
+        let (m_exp, half) = if e % 2 == 0 {
+            (0, e / 2)
+        } else {
+            (-1, (e + 1) / 2)
+        };
+        let m = Float {
+            neg: false,
+            exp: m_exp,
+            limbs: self.limbs.clone(),
+        };
         let mut ladder = vec![prec + 8];
         while *ladder.last().unwrap() > 50 {
             let p = ladder.last().unwrap() / 2 + 4;
@@ -628,15 +667,22 @@ impl Float {
         if self.is_zero() || self.exp <= 0 {
             return 0;
         }
-        assert!(self.exp <= 63, "Float::to_i64_trunc: integer part too large");
+        assert!(
+            self.exp <= 63,
+            "Float::to_i64_trunc: integer part too large"
+        );
         let v = (self.top_bits(64) >> (64 - self.exp)) as i64;
-        if self.neg { -v } else { v }
+        if self.neg {
+            -v
+        } else {
+            v
+        }
     }
 
     /// Top `n` fraction bits (1 ≤ n ≤ 64) as an integer in `[2^(n-1), 2^n)`.
     /// Zero for a zero value.
     pub fn top_bits(&self, n: u32) -> u64 {
-        debug_assert!(n >= 1 && n <= 64);
+        debug_assert!((1..=64).contains(&n));
         match self.limbs.last() {
             None => 0,
             Some(&top) => top >> (64 - n),
@@ -732,9 +778,21 @@ fn window_limb_of(w: &[Limb], o: i64) -> Limb {
     }
     let q = o.div_euclid(64);
     let sh = o.rem_euclid(64) as u32;
-    let lo = if q >= 0 && (q as usize) < w.len() { w[q as usize] } else { 0 };
-    let hi = if q + 1 >= 0 && ((q + 1) as usize) < w.len() { w[(q + 1) as usize] } else { 0 };
-    if sh == 0 { lo } else { lo >> sh | hi << (64 - sh) }
+    let lo = if q >= 0 && (q as usize) < w.len() {
+        w[q as usize]
+    } else {
+        0
+    };
+    let hi = if q + 1 >= 0 && ((q + 1) as usize) < w.len() {
+        w[(q + 1) as usize]
+    } else {
+        0
+    };
+    if sh == 0 {
+        lo
+    } else {
+        lo >> sh | hi << (64 - sh)
+    }
 }
 
 /// Place `src` into window `w` such that the top of `src` lands `down_bits`
@@ -815,7 +873,11 @@ pub fn isqrt(a: &[Limb]) -> (Vec<Limb>, bool) {
         return (Vec::new(), true);
     }
     if an <= 2 {
-        let v = if an == 1 { a[0] as u128 } else { a[0] as u128 | (a[1] as u128) << 64 };
+        let v = if an == 1 {
+            a[0] as u128
+        } else {
+            a[0] as u128 | (a[1] as u128) << 64
+        };
         let s = isqrt_u128(v);
         let exact = s * s == v;
         let mut out = vec![s as Limb, (s >> 64) as Limb];
@@ -893,6 +955,44 @@ fn limbs_to_decimal(a: &[Limb]) -> String {
     s
 }
 
+impl PartialOrd for Float {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+/// Total numeric order. Consistent with the derived `PartialEq`: the
+/// representation is canonical (normalized top bit, stripped low limbs,
+/// unique zero), so structural and numeric equality coincide.
+impl Ord for Float {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match (self.is_zero(), other.is_zero()) {
+            (true, true) => return Ordering::Equal,
+            (true, false) => {
+                return if other.neg {
+                    Ordering::Greater
+                } else {
+                    Ordering::Less
+                }
+            }
+            (false, true) => {
+                return if self.neg {
+                    Ordering::Less
+                } else {
+                    Ordering::Greater
+                }
+            }
+            _ => {}
+        }
+        match (self.neg, other.neg) {
+            (false, true) => Ordering::Greater,
+            (true, false) => Ordering::Less,
+            (false, false) => self.cmp_abs(other),
+            (true, true) => other.cmp_abs(self),
+        }
+    }
+}
+
 impl core::fmt::Display for Float {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", self.to_decimal(20))
@@ -946,7 +1046,11 @@ mod tests {
             if (a + b).is_finite() {
                 let diff = (sum.to_f64() - expect).abs();
                 let tol = expect.abs() * 1e-15 + 1e-300;
-                assert!(diff <= tol, "a={a} b={b} got={} want={expect}", sum.to_f64());
+                assert!(
+                    diff <= tol,
+                    "a={a} b={b} got={} want={expect}",
+                    sum.to_f64()
+                );
             }
         }
     }
@@ -1072,7 +1176,14 @@ mod tests {
 
     #[test]
     fn sqrt_squares() {
-        for v in [1u64, 4, 9, 144, 1 << 40, 10_000_000_000_000_000_002 /* not square */] {
+        for v in [
+            1u64,
+            4,
+            9,
+            144,
+            1 << 40,
+            10_000_000_000_000_000_002, /* not square */
+        ] {
             let f = Float::from_u64(v);
             let (s, inexact) = f.sqrt(200, Round::Nearest);
             let (sq, _) = s.mul(&s, 200, Round::Nearest);

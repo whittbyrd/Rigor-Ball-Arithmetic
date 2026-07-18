@@ -195,7 +195,11 @@ mod tests {
         let pi = constants::pi(prec + 32);
         let want = pi.mul(&pi, prec + 32).div_u64(6, prec + 32);
         let d = z.sub(&want, prec);
-        assert!(d.contains(&Float::zero()), "ζ(2) ≠ π²/6: {}", z.to_string_digits(30));
+        assert!(
+            d.contains(&Float::zero()),
+            "ζ(2) ≠ π²/6: {}",
+            z.to_string_digits(30)
+        );
         assert!(z.rel_accuracy_bits() >= prec as i64 - 8);
     }
 

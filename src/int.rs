@@ -17,15 +17,28 @@ pub struct Int {
 
 impl Int {
     pub const fn zero() -> Self {
-        Int { neg: false, mag: Vec::new() }
+        Int {
+            neg: false,
+            mag: Vec::new(),
+        }
     }
 
     pub fn from_u64(v: u64) -> Self {
-        Int { neg: false, mag: if v == 0 { Vec::new() } else { vec![v] } }
+        Int {
+            neg: false,
+            mag: if v == 0 { Vec::new() } else { vec![v] },
+        }
     }
 
     pub fn from_i64(v: i64) -> Self {
-        Int { neg: v < 0, mag: if v == 0 { Vec::new() } else { vec![v.unsigned_abs()] } }
+        Int {
+            neg: v < 0,
+            mag: if v == 0 {
+                Vec::new()
+            } else {
+                vec![v.unsigned_abs()]
+            },
+        }
     }
 
     pub fn is_zero(&self) -> bool {
@@ -44,7 +57,10 @@ impl Int {
         if self.is_zero() {
             self.clone()
         } else {
-            Int { neg: !self.neg, mag: self.mag.clone() }
+            Int {
+                neg: !self.neg,
+                mag: self.mag.clone(),
+            }
         }
     }
 
@@ -56,12 +72,21 @@ impl Int {
             return self.clone();
         }
         if self.neg == other.neg {
-            Int { neg: self.neg, mag: mag_add(&self.mag, &other.mag) }
+            Int {
+                neg: self.neg,
+                mag: mag_add(&self.mag, &other.mag),
+            }
         } else {
             match mpn::cmp(&self.mag, &other.mag) {
                 Ordering::Equal => Int::zero(),
-                Ordering::Greater => Int { neg: self.neg, mag: mag_sub(&self.mag, &other.mag) },
-                Ordering::Less => Int { neg: other.neg, mag: mag_sub(&other.mag, &self.mag) },
+                Ordering::Greater => Int {
+                    neg: self.neg,
+                    mag: mag_sub(&self.mag, &other.mag),
+                },
+                Ordering::Less => Int {
+                    neg: other.neg,
+                    mag: mag_sub(&other.mag, &self.mag),
+                },
             }
         }
     }
@@ -77,7 +102,10 @@ impl Int {
         let mut r = vec![0 as Limb; self.mag.len() + other.mag.len()];
         mpn::mul(&mut r, &self.mag, &other.mag);
         r.truncate(mpn::normalized_len(&r));
-        Int { neg: self.neg != other.neg, mag: r }
+        Int {
+            neg: self.neg != other.neg,
+            mag: r,
+        }
     }
 
     pub fn mul_u64(&self, v: u64) -> Int {
@@ -87,20 +115,33 @@ impl Int {
         let mut r = vec![0 as Limb; self.mag.len() + 1];
         r[self.mag.len()] = mpn::mul_1(&mut r[..self.mag.len()], &self.mag, v);
         r.truncate(mpn::normalized_len(&r));
-        Int { neg: self.neg, mag: r }
+        Int {
+            neg: self.neg,
+            mag: r,
+        }
     }
 
     pub fn mul_i64(&self, v: i64) -> Int {
         let r = self.mul_u64(v.unsigned_abs());
-        if v < 0 { r.neg() } else { r }
+        if v < 0 {
+            r.neg()
+        } else {
+            r
+        }
     }
 
     /// Exact quotient and remainder (round toward zero).
     pub fn divrem(&self, other: &Int) -> (Int, Int) {
         assert!(!other.is_zero(), "Int division by zero");
         let (q, r) = mpn::divrem(&self.mag, &other.mag);
-        let q = Int { neg: self.neg != other.neg && !q.is_empty(), mag: q };
-        let r = Int { neg: self.neg && !r.is_empty(), mag: r };
+        let q = Int {
+            neg: self.neg != other.neg && !q.is_empty(),
+            mag: q,
+        };
+        let r = Int {
+            neg: self.neg && !r.is_empty(),
+            mag: r,
+        };
         (q, r)
     }
 
@@ -119,14 +160,40 @@ impl Int {
             return Float::zero();
         }
         let f = Float::from_limbs(&self.mag);
-        if self.neg { f.neg() } else { f }
+        if self.neg {
+            f.neg()
+        } else {
+            f
+        }
     }
+}
 
-    pub fn cmp(&self, other: &Int) -> Ordering {
+impl PartialOrd for Int {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+/// Numeric order; representation is canonical, so this agrees with the
+/// derived `PartialEq`.
+impl Ord for Int {
+    fn cmp(&self, other: &Self) -> Ordering {
         match (self.is_zero(), other.is_zero()) {
             (true, true) => return Ordering::Equal,
-            (true, false) => return if other.neg { Ordering::Greater } else { Ordering::Less },
-            (false, true) => return if self.neg { Ordering::Less } else { Ordering::Greater },
+            (true, false) => {
+                return if other.neg {
+                    Ordering::Greater
+                } else {
+                    Ordering::Less
+                }
+            }
+            (false, true) => {
+                return if self.neg {
+                    Ordering::Less
+                } else {
+                    Ordering::Greater
+                }
+            }
             _ => {}
         }
         match (self.neg, other.neg) {
@@ -176,7 +243,11 @@ mod tests {
             1 => v.mag[0] as u128,
             _ => v.mag[0] as u128 | (v.mag[1] as u128) << 64,
         };
-        if v.neg { -(m as i128) } else { m as i128 }
+        if v.neg {
+            -(m as i128)
+        } else {
+            m as i128
+        }
     }
 
     #[test]

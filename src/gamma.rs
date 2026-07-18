@@ -35,7 +35,10 @@ pub fn try_gamma(x: &Ball, prec: u32) -> Option<Ball> {
         let extra = 64 + prec / 2 * attempt;
         let r = gamma_attempt(x, prec + extra)?;
         #[cfg(feature = "trace-retries")]
-        eprintln!("gamma attempt {attempt}: acc {} (want {prec})", r.rel_accuracy_bits());
+        eprintln!(
+            "gamma attempt {attempt}: acc {} (want {prec})",
+            r.rel_accuracy_bits()
+        );
         if r.rel_accuracy_bits() >= prec as i64 || attempt == MAX_ATTEMPTS {
             return Some(r.round(prec));
         }
@@ -172,8 +175,11 @@ fn ln_gamma_stirling(z: &Ball, wp: u32) -> Ball {
     let rem = {
         let b_next = bernoulli::bernoulli(m + 1, 64);
         let num = b_next.abs_upper();
-        let (den1, _) = Float::from_u64((2 * m as u64 + 2) * (2 * m as u64 + 1))
-            .mul(&pow_down(&z_low, 2 * m as u64 + 1), 64, Round::Down);
+        let (den1, _) = Float::from_u64((2 * m as u64 + 2) * (2 * m as u64 + 1)).mul(
+            &pow_down(&z_low, 2 * m as u64 + 1),
+            64,
+            Round::Down,
+        );
         let (bound, _) = num.div(&den1, 64, Round::Up);
         Mag::from_float_upper(&bound)
     };
@@ -261,9 +267,7 @@ mod tests {
         let g23 = gamma(&Ball::from_i64(2).div_u64(3, prec + 32), prec);
         let lhs = g13.mul(&g23, prec);
         let pi = constants::pi(prec + 32);
-        let rhs = pi
-            .mul_2exp(1)
-            .div(&Ball::from_i64(3).sqrt(prec + 32), prec);
+        let rhs = pi.mul_2exp(1).div(&Ball::from_i64(3).sqrt(prec + 32), prec);
         let d = lhs.sub(&rhs, prec);
         assert!(d.contains(&Float::zero()), "reflection identity failed");
     }

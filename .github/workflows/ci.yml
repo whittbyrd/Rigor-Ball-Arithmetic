@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Format
+        run: cargo fmt --check
+      - name: Clippy
+        run: cargo clippy --all-targets -- -D warnings
+      - name: Tests (release; includes inclusion property suites)
+        run: cargo test --release
+      - name: 100k-digit constants demo
+        run: cargo run --release --example digits_100k -- 100000
+      - name: Dependency-problem demo
+        run: cargo run --release --example dependency_problem
+
+  bench-regression:
+    name: benchmark regression canary
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Timed canary (order-of-magnitude tripwire)
+        run: cargo run --release --example bench_smoke
+
+  arb-differential:
+    name: differential vs Arb (FLINT)
+    runs-on: ubuntu-latest
+    # FFI against distro FLINT; marked non-blocking until the binding is
+    # validated across FLINT versions. Failures are surfaced, not ignored:
+    # check the job log.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install FLINT
+        run: sudo apt-get update && sudo apt-get install -y libflint-dev
+      - name: Differential tests
+        run: cargo run --release --manifest-path tools/arb-diff/Cargo.toml
+
+  flamegraph:
+    name: flamegraph (artifact)
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install perf + cargo-flamegraph
+        run: |
+          sudo apt-get update && sudo apt-get install -y linux-tools-common linux-tools-generic
+          cargo install flamegraph
+      - name: Generate flamegraph (10k-digit elementary functions)
+        run: |
+          echo 1 | sudo tee /proc/sys/kernel/perf_event_paranoid
+          mkdir -p docs
+          cargo flamegraph --example quick_timing -o docs/flamegraph.svg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flamegraph
+          path: docs/flamegraph.svg
+
+  criterion:
+    name: criterion benches (artifact)
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Run benches
+        run: cargo bench -- --noplot 2>&1 | tee bench-output.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: criterion-results
+          path: |
+            bench-output.txt
+            target/criterion

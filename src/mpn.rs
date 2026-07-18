@@ -27,7 +27,9 @@ fn adc(a: Limb, b: Limb, carry: Limb) -> (Limb, Limb) {
 
 #[inline(always)]
 fn sbb(a: Limb, b: Limb, borrow: Limb) -> (Limb, Limb) {
-    let t = (a as u128).wrapping_sub(b as u128).wrapping_sub(borrow as u128);
+    let t = (a as u128)
+        .wrapping_sub(b as u128)
+        .wrapping_sub(borrow as u128);
     (t as Limb, (t >> LIMB_BITS) as Limb & 1)
 }
 
@@ -292,7 +294,11 @@ fn mul_karatsuba(r: &mut [Limb], a: &[Limb], b: &[Limb]) {
         let (lo, _) = sb.split_at_mut(n);
         let m = b0.len();
         lo[..m].copy_from_slice(b0);
-        let carry = if b1.is_empty() { 0 } else { add(&mut lo[..m], b0, b1) };
+        let carry = if b1.is_empty() {
+            0
+        } else {
+            add(&mut lo[..m], b0, b1)
+        };
         sb[n] = carry;
     }
     let sbn = normalized_len(&sb);
@@ -525,7 +531,14 @@ mod tests {
     fn karatsuba_forced() {
         // Sizes straddling and well above the threshold, including unbalanced.
         let mut rng = Rng::new(4);
-        for &(an, bn) in &[(24, 24), (25, 24), (48, 31), (100, 25), (200, 26), (37, 129)] {
+        for &(an, bn) in &[
+            (24, 24),
+            (25, 24),
+            (48, 31),
+            (100, 25),
+            (200, 26),
+            (37, 129),
+        ] {
             let a: Vec<Limb> = (0..an).map(|_| rng.next()).collect();
             let b: Vec<Limb> = (0..bn).map(|_| rng.next()).collect();
             let mut r1 = vec![0; an + bn];

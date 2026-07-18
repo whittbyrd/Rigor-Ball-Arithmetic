@@ -29,7 +29,10 @@ impl Mag {
 
     /// The bound `2^e`.
     pub fn two_exp(e: i64) -> Self {
-        Mag { man: 1 << (MAG_BITS - 1), exp: e + 1 }
+        Mag {
+            man: 1 << (MAG_BITS - 1),
+            exp: e + 1,
+        }
     }
 
     /// Exponent bound: value ≤ 2^exp (tight to within one part in 2^29).
@@ -48,7 +51,10 @@ impl Mag {
             man <<= 1;
             exp -= 1;
         }
-        Mag { man: man as u32, exp }
+        Mag {
+            man: man as u32,
+            exp,
+        }
     }
 
     /// Upper bound for a `u64`.
@@ -63,7 +69,7 @@ impl Mag {
         } else {
             let shift = bits - MAG_BITS;
             // ((v >> s) + 1)·2^s ≥ v.
-            Mag::normalized((v >> shift) as u64 + 1, (MAG_BITS + shift) as i64)
+            Mag::normalized((v >> shift) + 1, (MAG_BITS + shift) as i64)
         }
     }
 
@@ -97,7 +103,11 @@ impl Mag {
         if other.is_zero() {
             return *self;
         }
-        let (a, b) = if self.exp >= other.exp { (self, other) } else { (other, self) };
+        let (a, b) = if self.exp >= other.exp {
+            (self, other)
+        } else {
+            (other, self)
+        };
         let d = (a.exp - b.exp) as u64;
         if d >= 34 {
             // b < 2^b.exp ≤ 2^(a.exp−34); adding 1 to a's mantissa adds
@@ -124,7 +134,10 @@ impl Mag {
         if self.is_zero() {
             *self
         } else {
-            Mag { man: self.man, exp: self.exp + k }
+            Mag {
+                man: self.man,
+                exp: self.exp + k,
+            }
         }
     }
 
@@ -137,16 +150,6 @@ impl Mag {
         }
     }
 
-    pub fn cmp(&self, other: &Mag) -> core::cmp::Ordering {
-        match (self.is_zero(), other.is_zero()) {
-            (true, true) => return core::cmp::Ordering::Equal,
-            (true, false) => return core::cmp::Ordering::Less,
-            (false, true) => return core::cmp::Ordering::Greater,
-            _ => {}
-        }
-        (self.exp, self.man).cmp(&(other.exp, other.man))
-    }
-
     /// Approximate value for display/diagnostics.
     pub fn to_f64(&self) -> f64 {
         if self.is_zero() {
@@ -154,6 +157,26 @@ impl Mag {
         } else {
             self.man as f64 * 2f64.powi((self.exp - MAG_BITS as i64).clamp(-1060, 1020) as i32)
         }
+    }
+}
+
+impl PartialOrd for Mag {
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+/// Numeric order; representation is canonical, so this agrees with the
+/// derived `PartialEq`.
+impl Ord for Mag {
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+        match (self.is_zero(), other.is_zero()) {
+            (true, true) => return core::cmp::Ordering::Equal,
+            (true, false) => return core::cmp::Ordering::Less,
+            (false, true) => return core::cmp::Ordering::Greater,
+            _ => {}
+        }
+        (self.exp, self.man).cmp(&(other.exp, other.man))
     }
 }
 
@@ -206,21 +229,36 @@ mod tests {
             // Verify with exact Float arithmetic.
             let (fs, _) = a.to_float().add(&b.to_float(), 128, Round::Nearest);
             let (fp, _) = a.to_float().mul(&b.to_float(), 128, Round::Nearest);
-            assert!(s.to_float().cmp(&fs) != core::cmp::Ordering::Less, "add not upper");
-            assert!(p.to_float().cmp(&fp) != core::cmp::Ordering::Less, "mul not upper");
+            assert!(
+                s.to_float().cmp(&fs) != core::cmp::Ordering::Less,
+                "add not upper"
+            );
+            assert!(
+                p.to_float().cmp(&fp) != core::cmp::Ordering::Less,
+                "mul not upper"
+            );
             // And not absurdly loose (within a factor 1 + 2^-25).
             let slack = Float::from_f64(1.0 + 1e-7);
             let (fs_hi, _) = fs.mul(&slack, 64, Round::Up);
             let (fp_hi, _) = fp.mul(&slack, 64, Round::Up);
-            assert!(s.to_float().cmp(&fs_hi) != core::cmp::Ordering::Greater, "add too loose");
-            assert!(p.to_float().cmp(&fp_hi) != core::cmp::Ordering::Greater, "mul too loose");
+            assert!(
+                s.to_float().cmp(&fs_hi) != core::cmp::Ordering::Greater,
+                "add too loose"
+            );
+            assert!(
+                p.to_float().cmp(&fp_hi) != core::cmp::Ordering::Greater,
+                "mul too loose"
+            );
         }
     }
 
     #[test]
     fn two_exp_value() {
         let m = Mag::two_exp(10);
-        assert_eq!(m.to_float().cmp(&Float::from_i64(1024)), core::cmp::Ordering::Equal);
+        assert_eq!(
+            m.to_float().cmp(&Float::from_i64(1024)),
+            core::cmp::Ordering::Equal
+        );
         let m = Mag::two_exp(-3);
         let (eighth, _) = Float::from_i64(1).div(&Float::from_i64(8), 64, Round::Nearest);
         assert_eq!(m.to_float().cmp(&eighth), core::cmp::Ordering::Equal);

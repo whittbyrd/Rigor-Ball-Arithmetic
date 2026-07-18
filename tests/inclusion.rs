@@ -3,9 +3,10 @@
 //! For random exact inputs x, evaluate f at precision p (a ball B) and at a
 //! much higher precision P (the oracle ball O, which encloses the true value
 //! tightly). The truth lies in both, so:
-//!   1. `B − O` must contain zero (the balls overlap), and
-//!   2. `B` must contain `O`'s midpoint once widened by `O`'s (tiny) radius —
-//!      practically: O.mid ∈ B widened by O.rad.
+//! 1. `B − O` must contain zero (the balls overlap), and
+//! 2. `B` must contain `O`'s midpoint once widened by `O`'s (tiny) radius —
+//!    practically: O.mid ∈ B widened by O.rad.
+//!
 //! We check the stronger form (2) via the exact `contains` predicate.
 //!
 //! Any failure here is a soundness bug, not a quality regression.

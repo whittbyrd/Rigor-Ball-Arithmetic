@@ -122,7 +122,8 @@ pub fn e_binsplit(prec: u32) -> Ball {
     let qf = q.to_float();
     let s = Ball::exact(t.to_float()).div(&Ball::exact(qf.clone()), wp);
     let (inv_q, _) = Float::from_u64(1).div(&qf, 64, Round::Up);
-    s.add_error(&Mag::from_float_upper(&inv_q.mul_2exp(1))).round(prec)
+    s.add_error(&Mag::from_float_upper(&inv_q.mul_2exp(1)))
+        .round(prec)
 }
 
 // ---------------------------------------------------------------------
@@ -227,7 +228,10 @@ mod tests {
         let a = ln2_binsplit(prec);
         let b = crate::elementary::ln_core(&Ball::from_i64(2), prec + 32);
         let d = a.sub(&b, prec + 64);
-        assert!(d.contains(&Float::zero()), "binsplit ln2 vs sqrt-reduction ln2 disagree");
+        assert!(
+            d.contains(&Float::zero()),
+            "binsplit ln2 vs sqrt-reduction ln2 disagree"
+        );
         assert!(a.rel_accuracy_bits() >= prec as i64 - 8);
     }
 }

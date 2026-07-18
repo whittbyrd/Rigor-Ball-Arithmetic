@@ -13,7 +13,11 @@ use rigor::fp::Float;
 use rigor::mag::Mag;
 
 fn width_bits(b: &Ball) -> i64 {
-    if b.is_exact() { i64::MIN } else { b.rad().exp() }
+    if b.is_exact() {
+        i64::MIN
+    } else {
+        b.rad().exp()
+    }
 }
 
 fn main() {

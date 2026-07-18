@@ -13,16 +13,16 @@
 //! - elementary and special functions on balls: [`elementary`], [`constants`],
 //!   [`gamma`], [`zeta`].
 
-pub mod mpn;
-pub mod fp;
-pub mod mag;
 pub mod ball;
-pub mod int;
-pub mod elementary;
-pub mod constants;
-pub mod binsplit;
 pub mod bernoulli;
+pub mod binsplit;
+pub mod constants;
+pub mod elementary;
+pub mod fp;
 pub mod gamma;
+pub mod int;
+pub mod mag;
+pub mod mpn;
 pub mod zeta;
 
 #[doc(hidden)]

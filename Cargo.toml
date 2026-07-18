@@ -8,6 +8,9 @@ license = "MIT OR Apache-2.0"
 keywords = ["arbitrary-precision", "interval-arithmetic", "ball-arithmetic", "verified", "numerics"]
 categories = ["mathematics", "science"]
 
+[lib]
+bench = false # criterion owns `cargo bench`; libtest would reject its flags
+
 [dependencies]
 # Core is intentionally dependency-free.
 

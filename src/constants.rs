@@ -15,7 +15,9 @@ struct Cache {
 
 impl Cache {
     const fn new() -> Self {
-        Cache { slot: Mutex::new(None) }
+        Cache {
+            slot: Mutex::new(None),
+        }
     }
 
     fn get(&self, prec: u32, compute: impl FnOnce(u32) -> Ball) -> Ball {
@@ -57,9 +59,7 @@ static LN_2PI: Cache = Cache::new();
 
 /// ln 2π as a ball with ≥ `prec` certified bits.
 pub fn ln_2pi(prec: u32) -> Ball {
-    LN_2PI.get(prec, |wp| {
-        elementary::ln(&pi(wp + 8).mul_2exp(1), wp)
-    })
+    LN_2PI.get(prec, |wp| elementary::ln(&pi(wp + 8).mul_2exp(1), wp))
 }
 
 /// Machin's formula: π = 16·atan(1/5) − 4·atan(1/239).
@@ -94,7 +94,10 @@ mod tests {
     fn ln2_digits() {
         let l = ln2(300);
         let s = l.mid().to_decimal(35);
-        assert!(s.starts_with("0.693147180559945309417232121458"), "ln2 = {s}");
+        assert!(
+            s.starts_with("0.693147180559945309417232121458"),
+            "ln2 = {s}"
+        );
         assert!(l.rel_accuracy_bits() >= 290);
     }
 

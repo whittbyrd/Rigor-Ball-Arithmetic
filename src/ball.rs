@@ -49,7 +49,10 @@ impl Ball {
 
     /// Exact ball (radius zero).
     pub fn exact(mid: Float) -> Self {
-        Ball { mid, rad: Mag::zero() }
+        Ball {
+            mid,
+            rad: Mag::zero(),
+        }
     }
 
     pub fn zero() -> Self {
@@ -82,7 +85,10 @@ impl Ball {
 
     /// Widen the radius by `err`.
     pub fn add_error(&self, err: &Mag) -> Ball {
-        Ball { mid: self.mid.clone(), rad: self.rad.add_up(err) }
+        Ball {
+            mid: self.mid.clone(),
+            rad: self.rad.add_up(err),
+        }
     }
 
     /// Does the ball certainly contain zero candidates? True iff |mid| ≤ rad.
@@ -123,12 +129,18 @@ impl Ball {
     // ---------------------------------------------------------------
 
     pub fn neg(&self) -> Ball {
-        Ball { mid: self.mid.neg(), rad: self.rad }
+        Ball {
+            mid: self.mid.neg(),
+            rad: self.rad,
+        }
     }
 
     /// Exact scaling by 2^k.
     pub fn mul_2exp(&self, k: i64) -> Ball {
-        Ball { mid: self.mid.mul_2exp(k), rad: self.rad.mul_2exp(k) }
+        Ball {
+            mid: self.mid.mul_2exp(k),
+            rad: self.rad.mul_2exp(k),
+        }
     }
 
     /// `self + other` at precision `prec`.
@@ -217,10 +229,7 @@ impl Ball {
     /// |√x − √ma| = |x − ma| / (√x + √ma) ≤ ra / (2·√L).
     pub fn sqrt(&self, prec: u32) -> Ball {
         const RP: u32 = 64;
-        assert!(
-            self.mid.signum() >= 0,
-            "Ball::sqrt: midpoint is negative"
-        );
+        assert!(self.mid.signum() >= 0, "Ball::sqrt: midpoint is negative");
         let ra_f = self.rad.to_float();
         let (l, _) = self.mid.sub(&ra_f, RP, Round::Down);
         if self.rad.is_zero() {
@@ -354,9 +363,8 @@ mod tests {
     use crate::testutil::Rng;
 
     fn rand_ball(rng: &mut Rng) -> Ball {
-        let mid = Float::from_f64(
-            (rng.next() as i64 as f64) * 2f64.powi(rng.range_i64(-40, 40) as i32),
-        );
+        let mid =
+            Float::from_f64((rng.next() as i64 as f64) * 2f64.powi(rng.range_i64(-40, 40) as i32));
         let rad = if rng.below(4) == 0 {
             Mag::zero()
         } else {
@@ -408,7 +416,9 @@ mod tests {
             let a = rand_ball(&mut rng);
             let b = rand_ball(&mut rng);
             let prec = 8 + rng.below(120) as u32;
-            let Some(q) = a.try_div(&b, prec) else { continue };
+            let Some(q) = a.try_div(&b, prec) else {
+                continue;
+            };
             tested += 1;
             for x in sample_points(&a) {
                 for y in sample_points(&b) {

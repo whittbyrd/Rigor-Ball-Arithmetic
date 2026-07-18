@@ -1,0 +1,15 @@
+# Head-to-head timing vs Arb (FLINT ≥ 3) and MPFR. Linux-only in practice.
+# Produces the digits/second comparison table used in the README:
+#
+#   sudo apt-get install libflint-dev libmpfr-dev
+#   cargo run --release --manifest-path tools/arb-bench/Cargo.toml
+[package]
+name = "arb-bench"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+rigor = { path = "../.." }
+
+[workspace]

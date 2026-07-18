@@ -1,4 +1,4 @@
-//! Rough timing sanity check: `cargo run --release --example quick_timing`
+﻿//! Rough timing sanity check: `cargo run --release --example quick_timing`
 use rigor::{ball::Ball, constants, elementary, gamma, zeta};
 use std::time::Instant;
 
@@ -15,7 +15,7 @@ fn time<F: FnMut() -> Ball>(name: &str, mut f: F) {
 
 fn main() {
     for digits in [100u32, 1_000, 10_000] {
-        let prec = (digits as f64 * 3.3219).ceil() as u32 + 16;
+        let prec = (digits as f64 * std::f64::consts::LOG2_10).ceil() as u32 + 16;
         println!("--- {digits} digits ({prec} bits) ---");
         let x = Ball::from_f64(1.5);
         time("exp(1.5)", || elementary::exp(&x, prec));

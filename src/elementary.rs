@@ -292,7 +292,11 @@ fn atan_series(z: &Ball, wp: u32) -> Ball {
     for m in 1..n {
         term = term.mul(&u, wp);
         let contrib = term.div_u64(2 * m + 1, wp);
-        sum = if m % 2 == 1 { sum.sub(&contrib, wp) } else { sum.add(&contrib, wp) };
+        sum = if m % 2 == 1 {
+            sum.sub(&contrib, wp)
+        } else {
+            sum.add(&contrib, wp)
+        };
     }
     // |z| < 1 ⇒ terms decrease ⇒ alternating tail ≤ first omitted term.
     let num = pow_up(&z_up, 2 * n + 1);
@@ -434,7 +438,6 @@ fn sin_cos_series(t: &Ball, wp: u32) -> (Ball, Ball) {
 mod tests {
     use super::*;
     use crate::testutil::Rng;
-    use core::cmp::Ordering;
 
     /// f64 reference must land inside the ball, allowing f64's own error.
     fn assert_close_f64(b: &Ball, want: f64, what: &str) {
@@ -467,7 +470,11 @@ mod tests {
             s.starts_with("2.7182818284590452353602874713526624977572"),
             "e = {s}"
         );
-        assert!(e.rel_accuracy_bits() >= 190, "acc {}", e.rel_accuracy_bits());
+        assert!(
+            e.rel_accuracy_bits() >= 190,
+            "acc {}",
+            e.rel_accuracy_bits()
+        );
         // exp(0) = 1 exactly.
         let one = exp(&Ball::zero(), 64);
         assert!(one.is_exact());
@@ -578,6 +585,10 @@ mod tests {
         let y = exp(&ln(&x, prec), prec);
         let diff = y.sub(&x, prec);
         assert!(diff.contains(&Float::zero()));
-        assert!(diff.rad().exp() < -(prec as i64) + 60, "rad 2^{}", diff.rad().exp());
+        assert!(
+            diff.rad().exp() < -(prec as i64) + 60,
+            "rad 2^{}",
+            diff.rad().exp()
+        );
     }
 }

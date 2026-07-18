@@ -100,9 +100,8 @@ mod tests {
         assert!(
             b.contains(&want) || {
                 // 1/den may be inexact in binary: widen by reference error.
-                let widened = b.add_error(&crate::mag::Mag::two_exp(
-                    want.exponent().unwrap() - 250,
-                ));
+                let widened =
+                    b.add_error(&crate::mag::Mag::two_exp(want.exponent().unwrap() - 250));
                 widened.contains(&want)
             },
             "B_{} should be {num}/{den}, got {}",
@@ -128,7 +127,12 @@ mod tests {
         let t = tangent_numbers(5);
         let want = [1u64, 2, 16, 272, 7936];
         for (i, w) in want.iter().enumerate() {
-            assert_eq!(t[i].cmp(&Int::from_u64(*w)), core::cmp::Ordering::Equal, "T_{}", i + 1);
+            assert_eq!(
+                t[i].cmp(&Int::from_u64(*w)),
+                core::cmp::Ordering::Equal,
+                "T_{}",
+                i + 1
+            );
         }
     }
 }

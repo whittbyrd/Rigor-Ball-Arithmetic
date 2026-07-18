@@ -15,7 +15,7 @@ fn main() {
         .nth(1)
         .and_then(|s| s.parse().ok())
         .unwrap_or(100_000);
-    let prec = (digits as f64 * 3.3219).ceil() as u32 + 64;
+    let prec = (digits as f64 * std::f64::consts::LOG2_10).ceil() as u32 + 64;
 
     let t0 = Instant::now();
     let pi = binsplit::pi_chudnovsky(prec);
@@ -26,7 +26,7 @@ fn main() {
 
     for (name, ball, secs) in [("pi", &pi, t_pi), ("e", &e, t_e)] {
         let acc = ball.rel_accuracy_bits();
-        let spare_bits = acc as f64 - digits as f64 * 3.3219;
+        let spare_bits = acc as f64 - digits as f64 * std::f64::consts::LOG2_10;
         assert!(
             spare_bits > 10.0,
             "{name}: only {acc} certified bits for {digits} digits"

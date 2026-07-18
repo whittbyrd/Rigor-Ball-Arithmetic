@@ -18,9 +18,12 @@ impl Rng {
             z = (z ^ (z >> 27)).wrapping_mul(0x94D049BB133111EB);
             z ^ (z >> 31)
         };
-        Rng { s: [next(), next(), next(), next()] }
+        Rng {
+            s: [next(), next(), next(), next()],
+        }
     }
 
+    #[allow(clippy::should_implement_trait)] // an RNG, not an Iterator
     pub fn next(&mut self) -> u64 {
         let s = &mut self.s;
         let result = s[1].wrapping_mul(5).rotate_left(7).wrapping_mul(9);
