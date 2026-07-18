@@ -19,6 +19,8 @@ default = []
 # Differential testing against Arb via FLINT. Linux-only in practice
 # (FLINT does not build under MSVC); exercised in CI.
 arb-tests = []
+# Print adaptive-precision retry diagnostics to stderr.
+trace-retries = []
 
 [[bench]]
 name = "elementary"

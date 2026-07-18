@@ -17,6 +17,8 @@ pub mod mpn;
 pub mod fp;
 pub mod mag;
 pub mod ball;
+pub mod elementary;
+pub mod constants;
 
 #[doc(hidden)]
 pub mod testutil;

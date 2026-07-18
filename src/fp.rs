@@ -533,6 +533,88 @@ impl Float {
         Float::from_window(false, &s, exp_top, !exact, prec, rnd)
     }
 
+    // ------------------------------------------------------------------
+    // Approximate Newton kernels (no rounding guarantees!)
+    //
+    // These produce results accurate to a few ulps at `prec` but carry no
+    // proof. Ball-layer callers certify them a posteriori: they compute the
+    // exact residual (one full-precision multiplication) and add a rigorous
+    // bound on it to the radius. This is how division and square root escape
+    // the O(n²) schoolbook kernels on the hot path.
+    // ------------------------------------------------------------------
+
+    /// Approximate reciprocal `≈ 1/self` via Newton iteration with precision
+    /// doubling. Relative error ≤ 2^(4−prec). Panics on zero input.
+    pub fn approx_recip(&self, prec: u32) -> Float {
+        assert!(!self.is_zero(), "approx_recip of zero");
+        // Work on the mantissa m ∈ [1/2, 1): 1/x = (1/m) · 2^−e.
+        let m = Float { neg: false, exp: 0, limbs: self.limbs.clone() };
+        // Precision ladder: quadratic convergence doubles accuracy per step.
+        let mut ladder = vec![prec + 8];
+        while *ladder.last().unwrap() > 50 {
+            let p = ladder.last().unwrap() / 2 + 4;
+            ladder.push(p);
+        }
+        // Seed from f64: 1/m with ~50 correct bits.
+        let mut r = Float::from_f64(1.0 / m.to_f64());
+        for &p in ladder.iter().rev().skip(1) {
+            // r ← r + r(1 − m·r): error ε → ε² (+ rounding at p).
+            let (mr, _) = m.mul(&r, p + 8, Round::Nearest);
+            let (delta, _) = Float::from_i64(1).sub(&mr, p + 8, Round::Nearest);
+            let (corr, _) = r.mul(&delta, p / 2 + 8, Round::Nearest);
+            let (rn, _) = r.add(&corr, p + 8, Round::Nearest);
+            r = rn;
+        }
+        let mut out = r;
+        out.exp -= self.exp;
+        if self.neg {
+            out.neg = true;
+        }
+        out
+    }
+
+    /// Approximate square root via divide-free Newton on 1/√m with precision
+    /// doubling. Relative error ≤ 2^(4−prec). Panics on negative input.
+    pub fn approx_sqrt(&self, prec: u32) -> Float {
+        assert!(!self.neg, "approx_sqrt of negative");
+        if self.is_zero() {
+            return Float::zero();
+        }
+        // m ∈ [1/4, 1) with even exponent offset: √x = √m · 2^(e/2).
+        let e = self.exp;
+        let (m_exp, half) = if e % 2 == 0 { (0, e / 2) } else { (-1, (e + 1) / 2) };
+        let m = Float { neg: false, exp: m_exp, limbs: self.limbs.clone() };
+        let mut ladder = vec![prec + 8];
+        while *ladder.last().unwrap() > 50 {
+            let p = ladder.last().unwrap() / 2 + 4;
+            ladder.push(p);
+        }
+        // Seed: 1/√m from f64.
+        let mut r = Float::from_f64(1.0 / m.to_f64().sqrt());
+        for &p in ladder.iter().rev().skip(1) {
+            // r ← r + r(1 − m·r²)/2.
+            let (r2, _) = r.mul(&r, p + 8, Round::Nearest);
+            let (mr2, _) = m.mul(&r2, p + 8, Round::Nearest);
+            let (delta, _) = Float::from_i64(1).sub(&mr2, p + 8, Round::Nearest);
+            let (corr, _) = r.mul(&delta, p / 2 + 8, Round::Nearest);
+            let (rn, _) = r.add(&corr.mul_2exp(-1), p + 8, Round::Nearest);
+            r = rn;
+        }
+        // √m = m · (1/√m).
+        let (s, _) = m.mul(&r, prec + 8, Round::Nearest);
+        s.mul_2exp(half)
+    }
+
+    /// Truncate toward zero to an i64. Panics if the integer part overflows.
+    pub fn to_i64_trunc(&self) -> i64 {
+        if self.is_zero() || self.exp <= 0 {
+            return 0;
+        }
+        assert!(self.exp <= 63, "Float::to_i64_trunc: integer part too large");
+        let v = (self.top_bits(64) >> (64 - self.exp)) as i64;
+        if self.neg { -v } else { v }
+    }
+
     /// Top `n` fraction bits (1 ≤ n ≤ 64) as an integer in `[2^(n-1), 2^n)`.
     /// Zero for a zero value.
     pub fn top_bits(&self, n: u32) -> u64 {

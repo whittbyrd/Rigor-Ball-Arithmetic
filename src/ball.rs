@@ -19,6 +19,12 @@ pub struct Ball {
     rad: Mag,
 }
 
+/// Above this precision, division and sqrt midpoints come from divide-free
+/// Newton approximations certified a posteriori via an exact residual
+/// (escaping the O(n²) schoolbook kernels); below it, the exact directed
+/// kernels are faster.
+const APPROX_THRESHOLD: u32 = 2048;
+
 /// Radius contribution of a round-to-nearest midpoint: half an ulp.
 fn round_err(mid: &Float, inexact: bool, prec: u32) -> Mag {
     if !inexact {
@@ -183,7 +189,7 @@ impl Ball {
         if l.signum() <= 0 {
             return None;
         }
-        let (mid, inexact) = self.mid.div(&other.mid, prec, Round::Nearest);
+        let (mid, mid_err) = div_mid_enclosure(&self.mid, &other.mid, &l, prec);
 
         // Numerator upper bound: ra·|mb| + rb·|ma| (all rounded up).
         let ama = self.mid.abs();
@@ -194,8 +200,7 @@ impl Ball {
         // Denominator lower bound: L·|mb| (rounded down).
         let (den, _) = l.mul(&amb, RP, Round::Down);
         let (bound, _) = num.div(&den, RP, Round::Up);
-        let rad = Mag::from_float_upper(&bound)
-            .add_up(&round_err(&mid, inexact, prec));
+        let rad = Mag::from_float_upper(&bound).add_up(&mid_err);
         Some(Ball { mid, rad })
     }
 
@@ -219,22 +224,34 @@ impl Ball {
         let ra_f = self.rad.to_float();
         let (l, _) = self.mid.sub(&ra_f, RP, Round::Down);
         if self.rad.is_zero() {
-            let (mid, inexact) = self.mid.sqrt(prec, Round::Nearest);
-            let rad = round_err(&mid, inexact, prec);
+            let (mid, rad) = sqrt_mid_enclosure(&self.mid, prec);
             return Ball { mid, rad };
         }
         assert!(
             l.signum() > 0,
             "Ball::sqrt: ball contains negative numbers (lower bound ≤ 0)"
         );
-        let (mid, inexact) = self.mid.sqrt(prec, Round::Nearest);
+        let (mid, mid_err) = sqrt_mid_enclosure(&self.mid, prec);
         // Lower bound on √L: round down.
         let (sl, _) = l.sqrt(RP, Round::Down);
         let (den, _) = sl.mul_u64(2, RP, Round::Down);
         let (bound, _) = ra_f.div(&den, RP, Round::Up);
-        let rad = Mag::from_float_upper(&bound)
-            .add_up(&round_err(&mid, inexact, prec));
+        let rad = Mag::from_float_upper(&bound).add_up(&mid_err);
         Ball { mid, rad }
+    }
+
+    /// Certified upper bound on `|x|` for all x in the ball, as a 64-bit
+    /// float rounded up: `|mid| + rad`.
+    pub fn abs_upper(&self) -> Float {
+        let (u, _) = self.mid.abs().add(&self.rad.to_float(), 64, Round::Up);
+        u
+    }
+
+    /// Certified lower bound on x for all x in the ball: `mid − rad`,
+    /// rounded toward −∞ at 64 bits.
+    pub fn lower_bound(&self) -> Float {
+        let (l, _) = self.mid.sub(&self.rad.to_float(), 64, Round::Floor);
+        l
     }
 
     /// The interval hull endpoints `[mid − rad, mid + rad]` as exact floats.
@@ -253,6 +270,66 @@ impl Ball {
     pub fn to_string_digits(&self, max_digits: usize) -> String {
         format!("[{} ± {}]", self.mid.to_decimal(max_digits), self.rad)
     }
+}
+
+/// Midpoint enclosure for `a / b`: returns `(q, err)` with `|a/b − q| ≤ err`.
+/// `b_low` is a certified positive lower bound on `|b|`.
+///
+/// Fast path (large precision): `q` comes from an *unproved* Newton
+/// reciprocal; rigor is restored by computing the exact residual
+/// `Δ = a − q·b` (one full multiplication) and bounding
+/// `|a/b − q| = |Δ|/|b| ≤ |Δ| / b_low`.
+fn div_mid_enclosure(a: &Float, b: &Float, b_low: &Float, prec: u32) -> (Float, Mag) {
+    const RP: u32 = 64;
+    // Schoolbook division costs O((na−nb)·nb): with a small divisor it is
+    // linear and beats Newton no matter the precision.
+    if prec < APPROX_THRESHOLD || b.bit_len() < APPROX_THRESHOLD as u64 {
+        let (q, inexact) = a.div(b, prec, Round::Nearest);
+        let err = round_err(&q, inexact, prec);
+        return (q, err);
+    }
+    let r = b.approx_recip(prec + 16);
+    let (q0, _) = a.mul(&r, prec + 16, Round::Nearest);
+    let (q, inexact) = q0.round(prec, Round::Nearest);
+    // Exact residual Δ = a − q·b.
+    let mul_prec = (q.bit_len() + b.bit_len() + 64) as u32;
+    let (qb, e1) = q.mul(b, mul_prec, Round::Nearest);
+    debug_assert!(!e1, "q·b must be exact at full precision");
+    let sub_prec = exact_sub_prec(a, &qb, (a.bit_len().max(qb.bit_len()) + 64) as u32);
+    let (delta, e2) = a.sub(&qb, sub_prec, Round::Nearest);
+    debug_assert!(!e2, "residual subtraction must be exact");
+    let (bound, _) = delta.abs().div(b_low, RP, Round::Up);
+    let _ = inexact;
+    (q, Mag::from_float_upper(&bound))
+}
+
+/// Midpoint enclosure for `√m` (m ≥ 0): returns `(s, err)` with `|√m − s| ≤ err`.
+///
+/// Fast path mirrors [`div_mid_enclosure`]: unproved Newton rsqrt, then
+/// exact residual `Δ = m − s²` and the identity
+/// `√m − s = Δ/(√m + s)`, so `|√m − s| ≤ |Δ|/s` (both √m, s ≥ 0).
+fn sqrt_mid_enclosure(m: &Float, prec: u32) -> (Float, Mag) {
+    const RP: u32 = 64;
+    if m.is_zero() {
+        return (Float::zero(), Mag::zero());
+    }
+    if prec < APPROX_THRESHOLD {
+        let (s, inexact) = m.sqrt(prec, Round::Nearest);
+        let err = round_err(&s, inexact, prec);
+        return (s, err);
+    }
+    let s0 = m.approx_sqrt(prec + 16);
+    let (s, _) = s0.round(prec, Round::Nearest);
+    let mul_prec = (2 * s.bit_len() + 64) as u32;
+    let (s2, e1) = s.mul(&s, mul_prec, Round::Nearest);
+    debug_assert!(!e1, "s² must be exact at full precision");
+    let sub_prec = exact_sub_prec(m, &s2, (m.bit_len().max(s2.bit_len()) + 64) as u32);
+    let (delta, e2) = m.sub(&s2, sub_prec, Round::Nearest);
+    debug_assert!(!e2, "residual subtraction must be exact");
+    // Lower bound on s (s > 0 since m > 0 and Newton preserves sign).
+    let (s_low, _) = s.round(RP, Round::Down);
+    let (bound, _) = delta.abs().div(&s_low, RP, Round::Up);
+    (s, Mag::from_float_upper(&bound))
 }
 
 /// Precision sufficient to subtract/add two floats exactly, given the top
