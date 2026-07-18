@@ -10,7 +10,7 @@
 
 use rigor::ball::Ball;
 use rigor::{binsplit, elementary, gamma, zeta};
-use std::os::raw::{c_int, c_longlong, c_void};
+use std::os::raw::{c_int, c_longlong};
 use std::time::Instant;
 
 #[repr(C)]

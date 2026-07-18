@@ -17,8 +17,8 @@
 //! Construction of each window guarantees the top set bit lies ≥ 126 bits
 //! above the window bottom whenever `eps` can be nonzero, so `eps` can never
 //! influence any bit at or above the rounding position — it only matters as a
-//! sticky "there is something nonzero below" flag. [`Float::from_window`] then
-//! performs the only rounding step in the whole crate.
+//! sticky "there is something nonzero below" flag. `Float::from_window`
+//! (private) then performs the only rounding step in the whole crate.
 
 use crate::mpn::{self, Limb, LIMB_BITS};
 use core::cmp::Ordering;

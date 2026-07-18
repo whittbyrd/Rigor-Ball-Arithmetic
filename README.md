@@ -93,18 +93,26 @@ thread), warm constant caches. Reproduce with `scripts/bench.ps1` /
 
 | op @ digits | 100 | 1 000 | 10 000 |
 |---|---|---|---|
-| exp | TBD | TBD | TBD |
-| ln | TBD | TBD | TBD |
-| sin | TBD | TBD | TBD |
-| atan | TBD | TBD | TBD |
-| Γ(1.5) (warm) | TBD | TBD | — (see below) |
-| ζ(3) (warm) | TBD | TBD | — |
+| ball mul | 164 ns | 4.1 µs | 115 µs |
+| ball sqrt | 5.8 µs | 19 µs | 242 µs |
+| exp | 39 µs | 296 µs | 30 ms |
+| ln | 109 µs | 992 µs | 90 ms |
+| sin | 74 µs | 782 µs | 95 ms |
+| atan | 141 µs | 1.5 ms | 114 ms |
+
+| special (warm caches) | 100 | 1 000 | 5 000 |
+|---|---|---|---|
+| Γ(1.5) | 1.5 ms | 44 ms | 1.12 s |
+| ζ(3) | 753 µs | 43 ms | 3.0 s |
 
 | constant @ digits | 1 000 | 10 000 | 100 000 |
 |---|---|---|---|
-| π (Chudnovsky) | TBD | TBD | TBD |
-| e | TBD | TBD | TBD |
-| ln 2 | TBD | TBD | TBD |
+| π (Chudnovsky) | 101 µs | 2.5 ms | 92 ms |
+| e | 171 µs | 1.7 ms | 35 ms |
+| ln 2 | 543 µs | 12 ms | 421 ms |
+
+Digits/second on π at 100k digits: ≈ 1.1 M digits/s. The special-function
+cliff at 5000 digits is the Bernoulli story told below.
 
 ### Versus Arb (honest edition)
 
