@@ -98,10 +98,18 @@ fn main() {
         let precu = prec as u32;
         let x = Ball::from_f64(xv);
 
+        // Special functions only run at ≤1000 digits: beyond that rigor's
+        // Bernoulli generation (tangent-number recurrence, O(M²) bigint ops)
+        // takes tens of minutes and the outcome is already documented in the
+        // README — Arb wins that regime outright.
+        let with_special = digits <= 1_000;
+
         // Warm rigor caches.
         let _ = elementary::ln(&x, precu);
-        let _ = gamma::gamma(&x, precu);
-        let _ = zeta::zeta(&Ball::from_i64(3), precu);
+        if with_special {
+            let _ = gamma::gamma(&x, precu);
+            let _ = zeta::zeta(&Ball::from_i64(3), precu);
+        }
 
         unsafe {
             let mut ax = ArbT::new();
@@ -227,6 +235,9 @@ fn main() {
                 ),
             ];
 
+            if !with_special {
+                rows.retain(|r| r.0 != "gamma" && r.0 != "zeta(3)");
+            }
             for (name, ours, arb, mpfr) in rows.iter_mut() {
                 let t_r = best_of(ours);
                 let t_a = best_of(arb);

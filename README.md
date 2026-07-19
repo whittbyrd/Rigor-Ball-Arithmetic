@@ -163,13 +163,15 @@ The design target was "within ~5× of Arb on elementary functions at
 - **ln and atan** sit further back (5–15×): Arb uses bit-burst / binary
   splitting evaluation for these; rigor's sqrt-based argument reduction
   plus series is simpler but multiplies the constant.
-- **Γ and ζ** are comparable at a few hundred digits, then fall off a
-  cliff around 5,000. The cliff is Bernoulli number generation: rigor
-  computes them exactly via the tangent-number recurrence, which is O(M²)
-  big-integer operations. Arb generates them via zeta-based
-  multi-evaluation and the von Staudt–Clausen theorem, which is
-  dramatically faster. This is the single biggest structural gap in the
-  library, documented rather than hidden.
+- **Γ and ζ** are the weakest area: Arb is far ahead at every precision
+  (measured ratios in `docs/arb-comparison.md`). At modest precision Arb's
+  special functions benefit from years of algorithmic tuning end to end;
+  at high precision rigor additionally hits a wall in Bernoulli number
+  generation — the exact tangent-number recurrence costs O(M²) big-integer
+  operations, versus Arb's much faster zeta-based multi-evaluation with
+  the von Staudt–Clausen theorem. This is the biggest structural gap in
+  the library, documented rather than hidden; above ~5,000 digits the
+  Bernoulli cost dominates the call outright.
 - **π** uses the same Chudnovsky binary splitting as everyone else; above
   ~10⁵ digits the difference reduces to GMP's FFT multiplication versus
   rigor's Karatsuba-only `mpn::mul` (O(n log n) vs O(n^1.585)).
