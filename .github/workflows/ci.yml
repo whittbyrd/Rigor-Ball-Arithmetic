@@ -59,28 +59,9 @@ jobs:
       - name: Differential tests
         run: cargo run --release --manifest-path tools/arb-diff/Cargo.toml
 
-  flamegraph:
-    name: flamegraph (artifact)
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - name: Install perf + cargo-flamegraph
-        run: |
-          sudo apt-get update && sudo apt-get install -y linux-tools-common linux-tools-generic
-          cargo install flamegraph
-      - name: Generate flamegraph (10k-digit elementary functions)
-        run: |
-          echo 1 | sudo tee /proc/sys/kernel/perf_event_paranoid
-          mkdir -p docs
-          cargo flamegraph --example quick_timing -o docs/flamegraph.svg
-      - uses: actions/upload-artifact@v4
-        with:
-          name: flamegraph
-          path: docs/flamegraph.svg
+  # Flamegraph + Arb comparison assets are generated on demand by the
+  # "Generate report assets" workflow (report.yml), which commits them
+  # to docs/.
 
   criterion:
     name: criterion benches (artifact)
