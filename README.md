@@ -149,45 +149,66 @@ medians, warm constant caches). Reproduce with `scripts/bench.ps1` or
 
 That's about 1.1 million verified digits of π per second at the 100k mark.
 
-### Where Arb wins, and why
+### Versus Arb and MPFR, measured
 
 The design target was "within ~5× of Arb on elementary functions at
-1k–10k digits." `scripts/compare_arb.sh` runs the head-to-head on Linux
+1k–10k digits." That target was missed, and the measured numbers say by
+how much. `scripts/compare_arb.sh` reproduces the comparison
 (`tools/arb-bench` times identical workloads against Arb and MPFR;
-`tools/arb-diff` checks the answers agree). The honest accounting:
+`tools/arb-diff` requires the answers to agree — it runs as a blocking CI
+check). Full CI-generated table: [`docs/arb-comparison.md`](docs/arb-comparison.md).
+Highlights at 1,000 digits (GitHub Actions runner):
 
-- **exp** lands roughly 3–8× behind Arb. Arb has hand-tuned assembly limb
-  kernels via GMP, truncated (`mulhigh`) products, and rectangular splitting
-  that evaluates an N-term series with O(√N) full multiplications where
-  rigor spends O(N).
-- **ln and atan** sit further back (5–15×): Arb uses bit-burst / binary
-  splitting evaluation for these; rigor's sqrt-based argument reduction
-  plus series is simpler but multiplies the constant.
-- **Γ and ζ** are the weakest area: Arb is far ahead at every precision
-  (measured ratios in `docs/arb-comparison.md`). At modest precision Arb's
-  special functions benefit from years of algorithmic tuning end to end;
-  at high precision rigor additionally hits a wall in Bernoulli number
-  generation — the exact tangent-number recurrence costs O(M²) big-integer
-  operations, versus Arb's much faster zeta-based multi-evaluation with
-  the von Staudt–Clausen theorem. This is the biggest structural gap in
-  the library, documented rather than hidden; above ~5,000 digits the
-  Bernoulli cost dominates the call outright.
-- **π** uses the same Chudnovsky binary splitting as everyone else; above
-  ~10⁵ digits the difference reduces to GMP's FFT multiplication versus
-  rigor's Karatsuba-only `mpn::mul` (O(n log n) vs O(n^1.585)).
+| function | rigor | Arb | MPFR | rigor/Arb |
+|---|---|---|---|---|
+| exp | 380 µs | 31 µs | 73 µs | 12× |
+| ln | 1.11 ms | 31 µs | 51 µs | 36× |
+| sin | 959 µs | 41 µs | 39 µs | 23× |
+| atan | 1.78 ms | 51 µs | 139 µs | 35× |
+| Γ(3/2) | 59.5 ms | — (cached) | 1.77 ms | ~34× vs MPFR |
+| ζ(3) | 55.2 ms | — (cached) | 221.8 ms | **0.25× vs MPFR** |
+
+Reading the numbers honestly:
+
+- **Elementary functions run 12–36× behind Arb at 1,000 digits and
+  40–90× at 10,000.** The gap decomposes into: GMP's hand-tuned assembly
+  limb kernels (vs safe-Rust `u128` arithmetic), truncated `mulhigh`
+  products (rigor computes full products), rectangular series splitting
+  (O(√N) full multiplications per series vs O(N)), and bit-burst / binary
+  splitting evaluation for ln and atan. Each is a known, implementable
+  technique — see the roadmap below.
+- **The Arb column for Γ(3/2), ζ(3), and π is not a computation time.**
+  Arb serves exact rational arguments and constants from special-cased
+  paths and internal caches (sub-microsecond), so those ratios would be
+  cache-hit comparisons, not algorithm comparisons. The MPFR column is the
+  informative one there: rigor's Γ is ~34× slower than MPFR, while
+  **ζ(3) is 4× faster than MPFR** at 1,000 digits — Euler–Maclaurin with
+  warm Bernoulli caches beats MPFR's approach on that input.
+- **Γ and ζ remain the weakest area at high precision** independent of the
+  above: Bernoulli generation via the exact tangent-number recurrence is
+  O(M²) big-integer operations, versus Arb's far faster zeta-based
+  multi-evaluation with the von Staudt–Clausen theorem. Above ~5,000
+  digits that cost dominates the call. The Euler–Maclaurin term count is
+  capped so the cost stays bounded (a longer direct sum compensates,
+  keeping inclusion rigorous).
+- **π** uses the same Chudnovsky binary splitting as everyone else; at
+  10⁵ digits the difference is GMP's FFT multiplication versus rigor's
+  Karatsuba-only `mpn::mul` (O(n log n) vs O(n^1.585)).
 - **MPFR** computes correctly-rounded point values without error bounds —
-  it's the "what does rigor cost" baseline, not a competitor.
+  it's the "what does rigor cost" baseline rather than a rigor competitor.
 
-Next wins, in impact order: Toom-3/FFT multiplication, `mulhigh` truncated
-products, rectangular series splitting, zeta-based Bernoulli generation.
+Roadmap by expected impact: Toom-3/FFT multiplication, `mulhigh` truncated
+products, rectangular series splitting, zeta-based Bernoulli generation,
+bit-burst ln/atan.
 
 ### Where the time goes
 
-A flamegraph of the 10k-digit elementary workload lives at
-`docs/flamegraph.svg` (regenerate with `scripts/flamegraph.sh`; CI also
-produces it as an artifact on every main-branch build). The hot path is
-`mpn::mul` under ball multiplication, which is exactly where it should be —
-everything else is bookkeeping.
+![Flamegraph of the 10k-digit elementary-function workload](docs/flamegraph.svg)
+
+Flamegraph of the 10k-digit elementary workload (CI-generated; regenerate
+with `scripts/flamegraph.sh` or the "Generate report assets" workflow).
+The hot path is `mpn::mul` under ball multiplication, which is exactly
+where it should be — everything else is bookkeeping.
 
 Profiling drove real decisions. The first version of `ln` spent 80% of its
 time inside integer-Newton square roots (each one did ~10 schoolbook
