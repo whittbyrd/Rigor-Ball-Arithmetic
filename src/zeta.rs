@@ -98,8 +98,7 @@ fn zeta_em(s: &Ball, wp: u32) -> Ball {
         (v as usize, v)
     } else {
         use core::f64::consts::{E, PI};
-        let n = (MAX_EM_TERMS / (PI * E))
-            * 2f64.powf(((wp as f64) + 16.0) / (2.0 * MAX_EM_TERMS));
+        let n = (MAX_EM_TERMS / (PI * E)) * 2f64.powf(((wp as f64) + 16.0) / (2.0 * MAX_EM_TERMS));
         (MAX_EM_TERMS as usize, n.ceil() as u64 + 8)
     };
 
