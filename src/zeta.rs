@@ -81,13 +81,27 @@ fn j_pow_neg_s(j: u64, s: &Ball, int_s: Option<u64>, wp: u32) -> Ball {
 fn zeta_em(s: &Ball, wp: u32) -> Ball {
     let int_s = as_small_int(s);
 
-    // Parameter choice: with N = M the k-th correction term is roughly
-    //   2(2k)!/((2π)^(2k) N^(2k−1)) ⇒ log2 t_M ≈ 2M·[log2(2M/e) − log2(2πN)]
-    // ≈ −6.2·M bits, so M ≈ wp/6.2 terms suffice. The remainder is computed
-    // rigorously below; this choice only affects performance.
-    let nm = ((wp as f64) * 0.17 + 10.0).ceil() as u64;
-    let n = nm;
-    let m = nm as usize;
+    // Parameter choice: the k-th correction term is roughly
+    //   2(2k)!/((2π)^(2k) N^(2k−1)) ⇒ log2 t_M ≈ 2M·[log2(2M/e) − log2(2πN)],
+    // which with N = M gives ≈ −6.2·M bits, so M ≈ wp/6.2 suffices.
+    //
+    // M is capped: Bernoulli generation (tangent recurrence) is the cubic
+    // cost center, and adaptive retries upstream probe ever-larger wp. When
+    // the cap binds, the direct sum N is lengthened to compensate:
+    // solving the error estimate for N gives N ≈ (2M/2πe)·2^((wp+16)/2M).
+    // The remainder below is still computed rigorously — this only affects
+    // performance, never inclusion.
+    const MAX_EM_TERMS: f64 = 1500.0;
+    let m_raw = (wp as f64) * 0.17 + 10.0;
+    let (m, n): (usize, u64) = if m_raw <= MAX_EM_TERMS {
+        let v = m_raw.ceil() as u64;
+        (v as usize, v)
+    } else {
+        use core::f64::consts::{E, PI};
+        let n = (MAX_EM_TERMS / (PI * E))
+            * 2f64.powf(((wp as f64) + 16.0) / (2.0 * MAX_EM_TERMS));
+        (MAX_EM_TERMS as usize, n.ceil() as u64 + 8)
+    };
 
     // Direct part: Σ_{j=1}^{N−1} j^(−s).
     let mut direct = Ball::from_i64(1);

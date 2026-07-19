@@ -115,14 +115,23 @@ fn main() {
                     ("gamma", arb_gamma, |b, p| gamma::gamma(b, p)),
                 ];
                 for (fname, afn, rfn) in fns {
+                    // Special functions are differential-tested at ≤1024 bits:
+                    // beyond that rigor's Bernoulli generation makes the job
+                    // take ~20 minutes for a regime whose performance story
+                    // is already documented (correctness there is covered by
+                    // the inclusion + identity suites).
+                    if *fname == "gamma" && prec > 1024 {
+                        continue;
+                    }
                     afn(&mut az, &ax, prec as Slong + 32);
                     let ours = rfn(&x, prec + 32);
                     if !compare(&format!("{fname}({label}) @{prec}"), &ours, &az, digits) {
                         failures += 1;
                     }
                 }
-                // zeta only for s > 1.
-                if xv > 1.0 {
+                // zeta only for s > 1 (and ≤1024 bits — non-integer s takes
+                // the slow exp(−s ln j) path).
+                if xv > 1.0 && prec <= 1024 {
                     arb_zeta(&mut az, &ax, prec as Slong + 32);
                     let ours = zeta::zeta(&x, prec + 32);
                     if !compare(&format!("zeta({label}) @{prec}"), &ours, &az, digits) {

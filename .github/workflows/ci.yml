@@ -16,6 +16,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -36,6 +37,7 @@ jobs:
   bench-regression:
     name: benchmark regression canary
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -46,10 +48,10 @@ jobs:
   arb-differential:
     name: differential vs Arb (FLINT)
     runs-on: ubuntu-latest
-    # FFI against distro FLINT; marked non-blocking until the binding is
-    # validated across FLINT versions. Failures are surfaced, not ignored:
-    # check the job log.
-    continue-on-error: true
+    # Blocking: the binding is validated (passed against ubuntu-latest
+    # FLINT). Special functions are tested at ≤1024 bits to keep the job
+    # fast; the timeout is a hang tripwire, not an expected duration.
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -67,6 +69,7 @@ jobs:
     name: criterion benches (artifact)
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
